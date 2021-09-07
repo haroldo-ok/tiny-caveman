@@ -546,7 +546,7 @@ void check_collisions() {
 
 void reset_actors_and_player() {
 	clear_actors();
-	init_actor(player, 116, 88, 3, 1, 2, 3);	
+	init_actor(player, 116, 88, 2, 1, 2, 3);	
 	ply_shot->active = 0;
 }
 
@@ -1058,6 +1058,7 @@ void main() {
 }
 
 SMS_EMBED_SEGA_ROM_HEADER(9999,0); // code 9999 hopefully free, here this means 'homebrew'
-SMS_EMBED_SDSC_HEADER(0,3, 2021,5,30, "Haroldo-OK\\2021", "Sub Rescue",
-  "A subaquatic shoot-em-up.\n"
+SMS_EMBED_SDSC_HEADER(0,1, 2022,9,7, "Haroldo-OK\\2022", "Tiny Caveman",
+  "A prehistoric beat-em-up.\n"
+  "Made for Dino Jam 1.\n"
   "Built using devkitSMS & SMSlib - https://github.com/sverx/devkitSMS");
