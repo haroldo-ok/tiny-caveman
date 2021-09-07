@@ -1,5 +1,5 @@
-PRJNAME := sub_rescue
-OBJS := data.rel sub_rescue.rel
+PRJNAME := tiny_caveman
+OBJS := data.rel tiny_caveman.rel
 
 all: $(PRJNAME).sms
 
