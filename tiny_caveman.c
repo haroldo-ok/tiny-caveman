@@ -50,6 +50,7 @@ typedef struct actor {
 	char facing_left;
 	char autofire;
 	char thrown_away;
+	int jump_speed;
 	
 	char char_w, char_h;
 	char pixel_w, pixel_h;
@@ -146,6 +147,7 @@ void init_actor(actor *act, int x, int y, int char_w, int char_h, unsigned char 
 	sa->spd_x = 0;
 	sa->facing_left = 1;
 	sa->thrown_away = 0;
+	sa->jump_speed = 0;
 	sa->autofire = 0;
 	
 	sa->char_w = char_w;
@@ -216,9 +218,18 @@ void move_actor(actor *act) {
 			if (_act->x >= SCREEN_W) _act->active = 0;
 		}				
 	}
-	
+		
 	if (_act->thrown_away) {
 		_act->y--;
+	} else {
+		if (act->jump_speed) {
+			_act->y += act->jump_speed >> 2;
+		}
+		act->jump_speed++;
+		if (_act->y > PLAYER_BOTTOM) {
+			_act->y = PLAYER_BOTTOM;
+			act->jump_speed = 0;
+		}
 	}
 	
 	if (_act->autofire && level.enemy_can_fire) {
@@ -299,12 +310,8 @@ void shuffle_random(char times) {
 void handle_player_input() {
 	unsigned char joy = SMS_getKeysStatus();
 	
-	if (joy & PORT_A_KEY_UP) {
-		if (player->y > PLAYER_TOP) player->y -= PLAYER_SPEED;
-		shuffle_random(1);
-	} else if (joy & PORT_A_KEY_DOWN) {
-		if (player->y < PLAYER_BOTTOM) player->y += PLAYER_SPEED;
-		shuffle_random(2);
+	if ((joy & PORT_A_KEY_UP) && player->y == PLAYER_BOTTOM) {
+		player->jump_speed = -5 << 2;
 	}
 	
 	if (joy & PORT_A_KEY_LEFT) {		
@@ -349,7 +356,7 @@ void handle_spawners() {
 	static int y;
 	
 	act = first_spawner;
-	for (i = 0, y = PLAYER_BOTTOM - 32; i != MAX_SPAWNERS; i++, act += 2) {
+	for (i = 0, y = PLAYER_BOTTOM - 16; i != MAX_SPAWNERS; i++, act += 2) {
 		act2 = act + 1;
 		if (!act->active && !act2->active) {
 			if (rand() & 3 > 1) {
@@ -496,7 +503,7 @@ void check_collisions() {
 
 void reset_actors_and_player() {
 	clear_actors();
-	init_actor(player, 116, 88, 2, 1, 2, 3);	
+	init_actor(player, 116, PLAYER_BOTTOM, 2, 1, 2, 3);	
 	ply_shot->active = 0;
 }
 
