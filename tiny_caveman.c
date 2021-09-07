@@ -51,6 +51,7 @@ typedef struct actor {
 	char autofire;
 	char thrown_away;
 	int jump_speed;
+	int max_y;
 	
 	char char_w, char_h;
 	char pixel_w, pixel_h;
@@ -148,6 +149,7 @@ void init_actor(actor *act, int x, int y, int char_w, int char_h, unsigned char 
 	sa->facing_left = 1;
 	sa->thrown_away = 0;
 	sa->jump_speed = 0;
+	sa->max_y = PLAYER_BOTTOM - (char_h - 1) * 16;
 	sa->autofire = 0;
 	
 	sa->char_w = char_w;
@@ -226,8 +228,8 @@ void move_actor(actor *act) {
 			_act->y += act->jump_speed >> 2;
 		}
 		act->jump_speed++;
-		if (_act->y > PLAYER_BOTTOM) {
-			_act->y = PLAYER_BOTTOM;
+		if (_act->y > _act->max_y) {
+			_act->y = _act->max_y;
 			act->jump_speed = 0;
 		}
 	}
