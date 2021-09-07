@@ -9,7 +9,7 @@
 #define SCREEN_H (192)
 #define SCROLL_H (224)
 
-#define MAX_SPAWNERS (5)
+#define MAX_SPAWNERS (2)
 #define MAX_ACTORS (2 + MAX_SPAWNERS * 2)
 #define FOREACH_ACTOR(act) actor *act = actors; for (char idx_##act = 0; idx_##act != MAX_ACTORS; idx_##act++, act++)
 	
@@ -367,49 +367,22 @@ void handle_spawners() {
 	static int y;
 	
 	act = first_spawner;
-	for (i = 0, y = PLAYER_TOP + 10; i != MAX_SPAWNERS; i++, act += 2, y += 24) {
+	for (i = 0, y = PLAYER_BOTTOM - 32; i != MAX_SPAWNERS; i++, act += 2) {
 		act2 = act + 1;
 		if (!act->active && !act2->active) {
 			if (rand() & 3 > 1) {
 				facing_left = (rand() >> 4) & 1;
-				thing_to_spawn = (rand() >> 4) % level.diver_chance ? ((rand() >> 4) & 1) : 2;
+				thing_to_spawn = 0;
 				boost = (rand() >> 4) % level.boost_chance ? 0 : 1;
 				
 				switch (thing_to_spawn) {
 				case 0:
-					// Spawn a submarine
+					// Spawn a T-Rex
 					init_actor(act, 0, y, 3, 2, 66, 3);
 					act->spd_x = level.submarine_speed + boost;
 					act->autofire = 1;
 					act->group = GROUP_ENEMY_SUB;
 					act->score = level.submarine_score;
-					break;
-					
-				case 1:
-					// Spawn a pair of fishes
-					init_actor(act, 0, y, 2, 1, 128, 4);
-					init_actor(act2, -64, y, 2, 1, 128, 4);
-					act->spd_x = level.fish_speed + boost;
-					act->group = GROUP_FISH;
-					act->score = level.fish_score;
-
-					act2->spd_x = act->spd_x;
-					act2->group = act->group;
-					act2->score = act->score;
-					break;
-					
-				case 2:
-					// Spawn a diver
-					init_actor(act, 0, y, 2, 1, 192, 4);
-					init_actor(act2, -24, y, 2, 1, 160, 2);
-					
-					act->spd_x = level.diver_speed + boost;
-					act->group = GROUP_DIVER;
-					act->score = level.diver_score;
-					
-					act2->active = level.show_diver_indicator;
-					act2->spd_x = act->spd_x;
-					act2->group = 0;
 					break;
 				}
 				
