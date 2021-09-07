@@ -51,6 +51,7 @@ typedef struct actor {
 	int spd_x;
 	char facing_left;
 	char autofire;
+	char thrown_away;
 	
 	char char_w, char_h;
 	char pixel_w, pixel_h;
@@ -155,6 +156,7 @@ void init_actor(actor *act, int x, int y, int char_w, int char_h, unsigned char 
 	sa->y = y;
 	sa->spd_x = 0;
 	sa->facing_left = 1;
+	sa->thrown_away = 0;
 	sa->autofire = 0;
 	
 	sa->char_w = char_w;
@@ -224,6 +226,10 @@ void move_actor(actor *act) {
 		} else {
 			if (_act->x >= SCREEN_W) _act->active = 0;
 		}				
+	}
+	
+	if (_act->thrown_away) {
+		_act->y--;
 	}
 	
 	if (_act->autofire && level.enemy_can_fire) {
@@ -496,16 +502,9 @@ void check_collision_against_player() {
 		return;
 	}
 
-	if (player->active && is_touching(collider, player)) {
-		collider->active = 0;		
-		if (collider->group == GROUP_DIVER) {
-			add_rescue(1);
-			// Hide the "Get ->" indicator.
-			(collider + 1)->active = 0;
-			PSGSFXPlay(rescue_diver_psg, SFX_CHANNELS2AND3);
-		} else {
-			player->active = 0;
-		}
+	if (player->active && !collider->thrown_away && is_touching(collider, player)) {
+		collider->thrown_away = 1;
+		collider->spd_x = -3 * collider->spd_x;
 		
 		add_score(collider->score);
 	}
