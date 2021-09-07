@@ -129,6 +129,7 @@ void draw_meta_sprite(int x, int y, int w, int h, unsigned char tile) {
 	sy = y;
 	st = tile;
 	for (i = h; i; i--) {
+		tile = st;
 		if (y >= 0 && y < SCREEN_H) {
 			sx = x;
 			for (j = w; j; j--) {
@@ -140,6 +141,7 @@ void draw_meta_sprite(int x, int y, int w, int h, unsigned char tile) {
 			}
 		}
 		sy += 16;
+		st += 64;
 	}
 }
 
@@ -163,7 +165,7 @@ void init_actor(actor *act, int x, int y, int char_w, int char_h, unsigned char 
 	sa->base_tile = base_tile;
 	sa->frame_count = frame_count;
 	sa->frame = 0;
-	sa->frame_increment = char_w * (char_h << 1);
+	sa->frame_increment = char_w << 1;
 	sa->frame_max = sa->frame_increment * frame_count;
 	
 	sa->group = 0;
@@ -376,7 +378,7 @@ void handle_spawners() {
 				switch (thing_to_spawn) {
 				case 0:
 					// Spawn a submarine
-					init_actor(act, 0, y, 3, 1, 66, 3);
+					init_actor(act, 0, y, 3, 2, 66, 3);
 					act->spd_x = level.submarine_speed + boost;
 					act->autofire = 1;
 					act->group = GROUP_ENEMY_SUB;
