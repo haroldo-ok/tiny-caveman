@@ -114,6 +114,7 @@ struct level {
 
 void add_score(unsigned int value);
 void add_life(int value);
+void add_energy_non_negative(int value);
 
 void draw_meta_sprite(int x, int y, int w, int h, unsigned char tile) {
 	static char i, j;
@@ -487,11 +488,7 @@ void check_collision_against_player() {
 	}
 
 	if (player->active && !collider->thrown_away && is_touching(collider, player)) {
-		/*
-		collider->thrown_away = 1;
-		
-		add_score(collider->score);
-		*/
+		add_energy_non_negative(-3);
 	}
 }
 
