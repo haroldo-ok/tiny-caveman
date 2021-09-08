@@ -51,7 +51,7 @@ typedef struct actor {
 	char autofire;
 	char thrown_away;
 	int jump_speed;
-	int max_y;
+	int max_y; // Ugly hack
 	
 	char char_w, char_h;
 	char pixel_w, pixel_h;
@@ -425,18 +425,6 @@ char is_touching(actor *act1, actor *act2) {
 	// Use global variables for speed
 	collider1 = act1;
 	collider2 = act2;
-
-/*
-	// Rough collision: check if their base vertical coordinates are on the same row
-	if (abs(collider1->y - collider2->y) > 16) {
-		return 0;
-	}
-	
-	// Rough collision: check if their base horizontal coordinates are not too distant
-	if (abs(collider1->x - collider2->x) > 24) {
-		return 0;
-	}
-	*/
 	
 	// Less rough collision on the Y axis
 	
@@ -480,21 +468,16 @@ char is_touching(actor *act1, actor *act2) {
 // Made global for performance
 actor *collider;
 
-void check_collision_against_player_shot() {	
+void check_collision_against_player_attack() {	
 	if (!collider->active || !collider->group) {
 		return;
 	}
 
-	if (ply_shot->active && is_touching(collider, ply_shot)) {
-		if (collider->group != GROUP_DIVER) {
-			collider->active = 0;
-			add_score(collider->score);
-			PSGSFXPlay(enemy_death_psg, SFX_CHANNELS2AND3);
-		}
-		
-		if (collider->group != GROUP_DIVER && collider->group != GROUP_ENEMY_SHOT) {
-			ply_shot->active = 0;
-		}		
+	if (player->punching && !collider->thrown_away && is_touching(collider, ply_shot)) {
+		collider->thrown_away = 1;
+		collider->spd_x = -3 * collider->spd_x;
+		add_score(collider->score);
+		PSGSFXPlay(enemy_death_psg, SFX_CHANNELS2AND3);
 	}
 }
 
@@ -504,17 +487,26 @@ void check_collision_against_player() {
 	}
 
 	if (player->active && !collider->thrown_away && is_touching(collider, player)) {
+		/*
 		collider->thrown_away = 1;
-		collider->spd_x = -3 * collider->spd_x;
 		
 		add_score(collider->score);
+		*/
 	}
 }
 
 void check_collisions() {
+	// Ugly hack for collision checking against the player's punch
+	ply_shot->x = player->x + (player->facing_left ? -8 : 8);
+	ply_shot->y = player->y;
+	ply_shot->col_x = player->col_x;
+	ply_shot->col_y = player->col_y;
+	ply_shot->col_w = player->col_w;
+	ply_shot->col_h = player->col_h;
+	
 	FOREACH_ACTOR(act) {
 		collider = act;
-		check_collision_against_player_shot();
+		check_collision_against_player_attack();
 		check_collision_against_player();
 	}
 }
