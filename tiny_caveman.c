@@ -59,6 +59,8 @@ typedef struct actor {
 	unsigned char base_tile, frame_count;
 	unsigned char frame, frame_increment, frame_max;
 	
+	char punching, punch_delay;
+	
 	char group;
 	char col_x, col_y, col_w, col_h;
 	
@@ -257,16 +259,29 @@ void draw_actor(actor *act) {
 	
 	_act = act;
 	
-	frame_tile = _act->base_tile + _act->frame;
-	if (!_act->facing_left) {
-		frame_tile += _act->frame_max;
+	if (_act->punching) {
+		frame_tile = _act->base_tile + (_act->frame_max << 1);
+		if (!_act->facing_left) {
+			frame_tile += 4;
+		}		
+	} else {
+		frame_tile = _act->base_tile + _act->frame;
+		if (!_act->facing_left) {
+			frame_tile += _act->frame_max;
+		}
 	}
+	
 	
 	draw_meta_sprite(_act->x, _act->y, _act->char_w, _act->char_h, frame_tile);	
 
 	if (!animation_delay) {
 		_act->frame += _act->frame_increment;
-		if (_act->frame >= _act->frame_max) _act->frame = 0;
+		if (_act->frame >= _act->frame_max) _act->frame = 0;		
+		if (_act->punching) {
+			_act->punching--;
+		} else if (_act->punch_delay > 1) {
+			_act->punch_delay--;
+		}
 	}
 }
 
@@ -326,16 +341,17 @@ void handle_player_input() {
 		shuffle_random(4);
 	}
 	
-	if (joy & (PORT_A_KEY_1 | PORT_A_KEY_2)) {
+	if ((joy & (PORT_A_KEY_1)) && !player->punching && !player->punch_delay) {
 		if (!ply_shot->active && !level.starting) {
 			PSGPlayNoRepeat(player_shot_psg);
 		}
+
+		player->punching = 2;
+		player->punch_delay = 2;
+	}
 	
-		fire_shot(ply_shot, player, PLAYER_SHOT_SPEED);
-		
-		// Player's shot has a slightly larger collision box
-		ply_shot->col_y = 7;
-		ply_shot->col_h = 6;
+	if (!(joy & (PORT_A_KEY_1)) && !player->punching && player->punch_delay == 1) {
+		player->punch_delay = 0;
 	}
 }
 
