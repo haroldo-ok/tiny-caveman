@@ -645,22 +645,8 @@ void draw_energy_if_needed() {
 
 void handle_energy() {
 	if (level.starting) {			
-		add_energy(5);
+		add_energy(15);
 		level.starting = energy.value < ENERGY_MAX;
-	}
-
-	if (!level.ending) {		
-		if (level.starting) {
-			if (!energy.playing_sfx) {
-				energy.playing_sfx = 1;
-				PSGSFXPlay(fill_air_psg, SFX_CHANNELS2AND3);			
-			}
-		} else {
-			if (energy.playing_sfx) {
-				energy.playing_sfx = 0;
-				PSGSFXStop();
-			}
-		}
 	}
 }
 
