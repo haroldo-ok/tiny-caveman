@@ -19,7 +19,7 @@
 #define PLAYER_SHOT_SPEED (6)
 #define PLAYER_TOP (32)
 #define PLAYER_LEFT (8)
-#define PLAYER_BOTTOM (146)
+#define PLAYER_BOTTOM (128)
 
 #define GROUP_ENEMY_SUB (1)
 #define GROUP_ENEMY_SHOT (2)
