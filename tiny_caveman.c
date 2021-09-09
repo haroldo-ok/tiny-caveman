@@ -344,7 +344,7 @@ void handle_player_input() {
 	
 	if ((joy & (PORT_A_KEY_1)) && !player->punching && !player->punch_delay) {
 		if (!ply_shot->active && !level.starting) {
-			PSGPlayNoRepeat(player_shot_psg);
+			PSGPlayNoRepeat(player_punch_psg);
 		}
 
 		player->punching = 2;

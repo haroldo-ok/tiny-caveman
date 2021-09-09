@@ -4,7 +4,7 @@ OBJS := data.rel tiny_caveman.rel
 all: $(PRJNAME).sms
 
 data.c: data/* data/font.1bpp data/sprites_tiles.psgcompr data/background_tiles.psgcompr \
-		data/enemy_death.psg data/rescue_diver.psg data/fill_air.psg data/player_death.psg data/player_danger.psg \
+		data/enemy_death.psg data/rescue_diver.psg data/fill_air.psg data/player_death.psg data/player_punch.psg data/player_danger.psg \
 		data/level_end.psg data/level_beep.psg
 	folder2c data data
 	
@@ -16,6 +16,9 @@ data/background_tiles.psgcompr: data/img/background.png
 	
 data/player_death.psg: data/deflemask/player_death.vgm
 	vgm2psg data/deflemask/player_death.vgm data/player_death.psg 23
+
+data/player_punch.psg: data/deflemask/player_punch.vgm
+	vgm2psg data/deflemask/player_punch.vgm data/player_punch.psg
 
 data/enemy_death.psg: data/deflemask/enemy_death.vgm
 	vgm2psg data/deflemask/enemy_death.vgm data/enemy_death.psg 23
