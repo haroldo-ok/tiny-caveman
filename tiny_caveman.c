@@ -306,9 +306,12 @@ void interrupt_handler() {
 }
 
 void load_standard_palettes() {
+	static unsigned char palette[16];
 	SMS_loadBGPalette(background_palette_bin);
-	SMS_loadSpritePalette(sprites_palette_bin);
-	SMS_setSpritePaletteColor(0, 0);
+	
+	memcpy(palette, sprites_palette_bin, 16);
+	palette[0] = 0;
+	SMS_loadSpritePalette(palette);
 }
 
 void load_tile_zero() {
