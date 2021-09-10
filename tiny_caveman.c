@@ -30,7 +30,7 @@
 
 #define LEVEL_DIGITS (3)
 
-#define ENERGY_CHARS (8)
+#define ENERGY_CHARS (12)
 #define ENERGY_RESOLUTION (4)
 #define ENERGY_SHIFT (4)
 #define ENERGY_MAX ((ENERGY_CHARS * ENERGY_RESOLUTION) << ENERGY_SHIFT)
@@ -545,7 +545,7 @@ void draw_score() {
 		
 	// Draw the digits
 	d = buffer;
-	SMS_setNextTileatXY(((32 - SCORE_DIGITS) >> 1) + 1, 1);
+	SMS_setNextTileatXY(((32 - SCORE_DIGITS) >> 1) + 1, 0);
 	for (char i = SCORE_DIGITS; i; i--, d++) {
 		SMS_setTile((*d << 1) + 237 + TILE_USE_SPRITE_PALETTE);
 	}
@@ -571,7 +571,7 @@ void draw_level_number() {
 		
 	// Draw the digits
 	d = buffer;
-	SMS_setNextTileatXY(2, 1);
+	SMS_setNextTileatXY(2, 0);
 	for (char i = LEVEL_DIGITS; i; i--, d++) {
 		SMS_setTile((*d << 1) + 237 + TILE_USE_SPRITE_PALETTE);
 	}
@@ -588,7 +588,7 @@ void add_life(int value) {
 }
 
 void draw_life() {
-	SMS_setNextTileatXY(2, 2);
+	SMS_setNextTileatXY(2, 1);
 	
 	int remaining = life.value;
 	for (char i = LIFE_CHARS; i; i--) {
@@ -624,7 +624,7 @@ void add_energy_non_negative(int value) {
 }
 
 void draw_energy() {
-	SMS_setNextTileatXY(((32 - ENERGY_CHARS) >> 1) + 1, 2);
+	SMS_setNextTileatXY(((32 - ENERGY_CHARS) >> 1) + 1, 1);
 	
 	int remaining = energy.last_shifted_value;
 	if (remaining < 0) remaining = 0;
@@ -935,6 +935,7 @@ void main() {
 	SMS_useFirstHalfTilesforSprites(1);
 	SMS_setSpriteMode(SPRITEMODE_TALL);
 	SMS_VDPturnOnFeature(VDPFEATURE_HIDEFIRSTCOL);
+	SMS_VDPturnOnFeature(VDPFEATURE_LOCKHSCROLL);
 	
 	while (1) {
 		switch (state) {
