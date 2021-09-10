@@ -112,6 +112,8 @@ struct level {
 	char show_diver_indicator;
 } level;
 
+unsigned char screen_scroll;
+
 void add_score(unsigned int value);
 void add_life(int value);
 void add_energy_non_negative(int value);
@@ -744,6 +746,28 @@ void perform_level_end_sequence() {
 	PSGSFXPlay(fill_air_psg, SFX_CHANNELS2AND3);			
 }
 
+void handle_scrolling() {
+	static int delta = 0;
+	
+	if (player->x < 128) return;
+	
+	delta = player->x - 128;
+	screen_scroll -= delta;	
+	SMS_setBGScrollX(screen_scroll);
+
+	player->x = 128;
+	/*
+	FOREACH_ACTOR(act) {
+		if (act->active && act->x > 0 && !act->thrown_away) {
+			act->x -= delta;
+			if (act->x < -24) {
+				act->active = 0;
+			}
+		}
+	}
+	*/
+}
+
 char gameplay_loop() {
 	int frame = 0;
 	int fish_frame = 0;
@@ -756,6 +780,7 @@ char gameplay_loop() {
 	set_energy(0);	
 	energy.dirty = 1;
 	energy.playing_sfx = 0;
+	screen_scroll = 0;
 	
 	level.number = 1;
 	level.starting = 1;
@@ -768,6 +793,7 @@ char gameplay_loop() {
 	SMS_loadPSGaidencompressedTiles(sprites_tiles_psgcompr, 0);
 	SMS_loadPSGaidencompressedTiles(background_tiles_psgcompr, 256);
 	
+	SMS_setBGScrollX(0);
 	draw_background();
 
 	load_standard_palettes();
@@ -816,6 +842,7 @@ char gameplay_loop() {
 		
 		SMS_initSprites();	
 
+		handle_scrolling();
 		draw_actors();		
 
 		SMS_finalizeSprites();		
