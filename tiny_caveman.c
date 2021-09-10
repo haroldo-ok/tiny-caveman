@@ -666,7 +666,7 @@ void initialize_level() {
 	level.energy_score = 1 + level.number / 4;
 	
 	level.fish_speed = 1 + level.number / 3;
-	level.submarine_speed = 1 + level.number / 5;
+	level.submarine_speed = 2 + level.number / 5;
 	level.diver_speed = 1 + level.number / 6;
 	
 	if (level.fish_speed > PLAYER_SPEED) level.fish_speed = PLAYER_SPEED;
@@ -677,7 +677,7 @@ void initialize_level() {
 	level.enemy_can_fire = level.number > 1;
 	level.show_diver_indicator = level.number < 2;
 	
-	level.boost_chance = 14 - level.number * 2 / 3;
+	level.boost_chance = 7 - level.number * 2 / 3;
 	if (level.boost_chance < 2) level.boost_chance = 2;
 }
 
