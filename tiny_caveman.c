@@ -9,7 +9,7 @@
 #define SCREEN_H (192)
 #define SCROLL_H (224)
 
-#define MAX_SPAWNERS (5)
+#define MAX_SPAWNERS (2)
 #define MAX_ACTORS (2 + MAX_SPAWNERS * 2)
 #define FOREACH_ACTOR(act) actor *act = actors; for (char idx_##act = 0; idx_##act != MAX_ACTORS; idx_##act++, act++)
 	
@@ -19,7 +19,7 @@
 #define PLAYER_SHOT_SPEED (6)
 #define PLAYER_TOP (32)
 #define PLAYER_LEFT (8)
-#define PLAYER_BOTTOM (146)
+#define PLAYER_BOTTOM (128)
 
 #define GROUP_ENEMY_SUB (1)
 #define GROUP_ENEMY_SHOT (2)
@@ -30,13 +30,11 @@
 
 #define LEVEL_DIGITS (3)
 
-#define OXYGEN_CHARS (8)
-#define OXYGEN_RESOLUTION (4)
-#define OXYGEN_SHIFT (4)
-#define OXYGEN_MAX ((OXYGEN_CHARS * OXYGEN_RESOLUTION) << OXYGEN_SHIFT)
-#define OXYGEN_MIN (-OXYGEN_MAX / 6)
-
-#define RESCUE_CHARS (6)
+#define ENERGY_CHARS (12)
+#define ENERGY_RESOLUTION (4)
+#define ENERGY_SHIFT (4)
+#define ENERGY_MAX ((ENERGY_CHARS * ENERGY_RESOLUTION) << ENERGY_SHIFT)
+#define ENERGY_MIN (-ENERGY_MAX / 6)
 
 #define LIFE_CHARS (6)
 
@@ -51,12 +49,17 @@ typedef struct actor {
 	int spd_x;
 	char facing_left;
 	char autofire;
+	char thrown_away;
+	int jump_speed;
+	int max_y; // Ugly hack
 	
 	char char_w, char_h;
 	char pixel_w, pixel_h;
 	
 	unsigned char base_tile, frame_count;
 	unsigned char frame, frame_increment, frame_max;
+	
+	char punching, punch_delay;
 	
 	char group;
 	char col_x, col_y, col_w, col_h;
@@ -77,22 +80,17 @@ struct score {
 	char dirty;
 } score;
 
-struct rescue {
-	int value;
-	char dirty;
-} rescue;
-
 struct life {
 	int value;
 	char dirty;
 } life;
 
-struct oxygen {
+struct energy {
 	int value;
 	unsigned char last_shifted_value;
 	char dirty;	
 	char playing_sfx;
-} oxygen;
+} energy;
 
 struct level {
 	unsigned int number;
@@ -102,7 +100,7 @@ struct level {
 	unsigned int submarine_score;
 	unsigned int fish_score;
 	unsigned int diver_score;
-	unsigned int oxygen_score;
+	unsigned int energy_score;
 	
 	unsigned char submarine_speed;
 	unsigned char fish_speed;
@@ -114,12 +112,11 @@ struct level {
 	char show_diver_indicator;
 } level;
 
-void add_score(unsigned int value);
-void add_rescue(int value);
-void add_life(int value);
+unsigned char screen_scroll;
 
-char is_oxygen_critical();
-char is_player_filling_oxygen();
+void add_score(unsigned int value);
+void add_life(int value);
+void add_energy_non_negative(int value);
 
 void draw_meta_sprite(int x, int y, int w, int h, unsigned char tile) {
 	static char i, j;
@@ -129,6 +126,7 @@ void draw_meta_sprite(int x, int y, int w, int h, unsigned char tile) {
 	sy = y;
 	st = tile;
 	for (i = h; i; i--) {
+		tile = st;
 		if (y >= 0 && y < SCREEN_H) {
 			sx = x;
 			for (j = w; j; j--) {
@@ -140,6 +138,7 @@ void draw_meta_sprite(int x, int y, int w, int h, unsigned char tile) {
 			}
 		}
 		sy += 16;
+		st += 64;
 	}
 }
 
@@ -153,6 +152,9 @@ void init_actor(actor *act, int x, int y, int char_w, int char_h, unsigned char 
 	sa->y = y;
 	sa->spd_x = 0;
 	sa->facing_left = 1;
+	sa->thrown_away = 0;
+	sa->jump_speed = 0;
+	sa->max_y = PLAYER_BOTTOM - (char_h - 1) * 16;
 	sa->autofire = 0;
 	
 	sa->char_w = char_w;
@@ -163,7 +165,7 @@ void init_actor(actor *act, int x, int y, int char_w, int char_h, unsigned char 
 	sa->base_tile = base_tile;
 	sa->frame_count = frame_count;
 	sa->frame = 0;
-	sa->frame_increment = char_w * (char_h << 1);
+	sa->frame_increment = char_w << 1;
 	sa->frame_max = sa->frame_increment * frame_count;
 	
 	sa->group = 0;
@@ -223,6 +225,19 @@ void move_actor(actor *act) {
 			if (_act->x >= SCREEN_W) _act->active = 0;
 		}				
 	}
+		
+	if (_act->thrown_away) {
+		_act->y--;
+	} else {
+		if (act->jump_speed) {
+			_act->y += act->jump_speed >> 2;
+		}
+		act->jump_speed++;
+		if (_act->y > _act->max_y) {
+			_act->y = _act->max_y;
+			act->jump_speed = 0;
+		}
+	}
 	
 	if (_act->autofire && level.enemy_can_fire) {
 		actor *_shot = _act + 1;		
@@ -247,16 +262,29 @@ void draw_actor(actor *act) {
 	
 	_act = act;
 	
-	frame_tile = _act->base_tile + _act->frame;
-	if (!_act->facing_left) {
-		frame_tile += _act->frame_max;
+	if (_act->punching) {
+		frame_tile = _act->base_tile + (_act->frame_max << 1);
+		if (!_act->facing_left) {
+			frame_tile += 4;
+		}		
+	} else {
+		frame_tile = _act->base_tile + _act->frame;
+		if (!_act->facing_left) {
+			frame_tile += _act->frame_max;
+		}
 	}
+	
 	
 	draw_meta_sprite(_act->x, _act->y, _act->char_w, _act->char_h, frame_tile);	
 
 	if (!animation_delay) {
 		_act->frame += _act->frame_increment;
-		if (_act->frame >= _act->frame_max) _act->frame = 0;
+		if (_act->frame >= _act->frame_max) _act->frame = 0;		
+		if (_act->punching) {
+			_act->punching--;
+		} else if (_act->punch_delay > 1) {
+			_act->punch_delay--;
+		}
 	}
 }
 
@@ -273,27 +301,17 @@ void clear_sprites() {
 }
 
 void interrupt_handler() {
-	static unsigned char alarm_control = 0;
-	
-	if (is_oxygen_critical() && !is_player_filling_oxygen()) {
-		if (!alarm_control) {
-			PSGSFXPlay(player_danger_psg, SFX_CHANNELS2AND3);
-			alarm_control = 40;
-		} else {
-			alarm_control--;
-		}
-	} else {
-		alarm_control = 0;
-	}
-	
 	PSGFrame();
 	PSGSFXFrame();
 }
 
 void load_standard_palettes() {
+	static unsigned char palette[16];
 	SMS_loadBGPalette(background_palette_bin);
-	SMS_loadSpritePalette(sprites_palette_bin);
-	SMS_setSpritePaletteColor(0, 0);
+	
+	memcpy(palette, sprites_palette_bin, 16);
+	palette[0] = 0;
+	SMS_loadSpritePalette(palette);
 }
 
 void load_tile_zero() {
@@ -315,12 +333,8 @@ void shuffle_random(char times) {
 void handle_player_input() {
 	unsigned char joy = SMS_getKeysStatus();
 	
-	if (joy & PORT_A_KEY_UP) {
-		if (player->y > PLAYER_TOP) player->y -= PLAYER_SPEED;
-		shuffle_random(1);
-	} else if (joy & PORT_A_KEY_DOWN) {
-		if (player->y < PLAYER_BOTTOM) player->y += PLAYER_SPEED;
-		shuffle_random(2);
+	if ((joy & PORT_A_KEY_UP) && player->y == PLAYER_BOTTOM) {
+		player->jump_speed = -5 << 2;
 	}
 	
 	if (joy & PORT_A_KEY_LEFT) {		
@@ -333,16 +347,17 @@ void handle_player_input() {
 		shuffle_random(4);
 	}
 	
-	if (joy & (PORT_A_KEY_1 | PORT_A_KEY_2)) {
+	if ((joy & (PORT_A_KEY_1)) && !player->punching && !player->punch_delay) {
 		if (!ply_shot->active && !level.starting) {
-			PSGPlayNoRepeat(player_shot_psg);
+			PSGPlayNoRepeat(player_punch_psg);
 		}
+
+		player->punching = 2;
+		player->punch_delay = 2;
+	}
 	
-		fire_shot(ply_shot, player, PLAYER_SHOT_SPEED);
-		
-		// Player's shot has a slightly larger collision box
-		ply_shot->col_y = 7;
-		ply_shot->col_h = 6;
+	if (!(joy & (PORT_A_KEY_1)) && !player->punching && player->punch_delay == 1) {
+		player->punch_delay = 0;
 	}
 }
 
@@ -365,49 +380,22 @@ void handle_spawners() {
 	static int y;
 	
 	act = first_spawner;
-	for (i = 0, y = PLAYER_TOP + 10; i != MAX_SPAWNERS; i++, act += 2, y += 24) {
+	for (i = 0, y = PLAYER_BOTTOM - 16; i != MAX_SPAWNERS; i++, act += 2) {
 		act2 = act + 1;
 		if (!act->active && !act2->active) {
 			if (rand() & 3 > 1) {
 				facing_left = (rand() >> 4) & 1;
-				thing_to_spawn = (rand() >> 4) % level.diver_chance ? ((rand() >> 4) & 1) : 2;
+				thing_to_spawn = 0;
 				boost = (rand() >> 4) % level.boost_chance ? 0 : 1;
 				
 				switch (thing_to_spawn) {
 				case 0:
-					// Spawn a submarine
-					init_actor(act, 0, y, 3, 1, 66, 3);
+					// Spawn a T-Rex
+					init_actor(act, 0, y, 3, 2, 66, 3);
 					act->spd_x = level.submarine_speed + boost;
 					act->autofire = 1;
 					act->group = GROUP_ENEMY_SUB;
 					act->score = level.submarine_score;
-					break;
-					
-				case 1:
-					// Spawn a pair of fishes
-					init_actor(act, 0, y, 2, 1, 128, 4);
-					init_actor(act2, -64, y, 2, 1, 128, 4);
-					act->spd_x = level.fish_speed + boost;
-					act->group = GROUP_FISH;
-					act->score = level.fish_score;
-
-					act2->spd_x = act->spd_x;
-					act2->group = act->group;
-					act2->score = act->score;
-					break;
-					
-				case 2:
-					// Spawn a diver
-					init_actor(act, 0, y, 2, 1, 192, 4);
-					init_actor(act2, -24, y, 2, 1, 160, 2);
-					
-					act->spd_x = level.diver_speed + boost;
-					act->group = GROUP_DIVER;
-					act->score = level.diver_score;
-					
-					act2->active = level.show_diver_indicator;
-					act2->spd_x = act->spd_x;
-					act2->group = 0;
 					break;
 				}
 				
@@ -443,18 +431,6 @@ char is_touching(actor *act1, actor *act2) {
 	// Use global variables for speed
 	collider1 = act1;
 	collider2 = act2;
-
-/*
-	// Rough collision: check if their base vertical coordinates are on the same row
-	if (abs(collider1->y - collider2->y) > 16) {
-		return 0;
-	}
-	
-	// Rough collision: check if their base horizontal coordinates are not too distant
-	if (abs(collider1->x - collider2->x) > 24) {
-		return 0;
-	}
-	*/
 	
 	// Less rough collision on the Y axis
 	
@@ -498,21 +474,16 @@ char is_touching(actor *act1, actor *act2) {
 // Made global for performance
 actor *collider;
 
-void check_collision_against_player_shot() {	
+void check_collision_against_player_attack() {	
 	if (!collider->active || !collider->group) {
 		return;
 	}
 
-	if (ply_shot->active && is_touching(collider, ply_shot)) {
-		if (collider->group != GROUP_DIVER) {
-			collider->active = 0;
-			add_score(collider->score);
-			PSGSFXPlay(enemy_death_psg, SFX_CHANNELS2AND3);
-		}
-		
-		if (collider->group != GROUP_DIVER && collider->group != GROUP_ENEMY_SHOT) {
-			ply_shot->active = 0;
-		}		
+	if (player->punching && !collider->thrown_away && is_touching(collider, ply_shot)) {
+		collider->thrown_away = 1;
+		collider->spd_x = -3 * collider->spd_x;
+		add_score(collider->score);
+		PSGSFXPlay(enemy_death_psg, SFX_CHANNELS2AND3);
 	}
 }
 
@@ -521,32 +492,30 @@ void check_collision_against_player() {
 		return;
 	}
 
-	if (player->active && is_touching(collider, player)) {
-		collider->active = 0;		
-		if (collider->group == GROUP_DIVER) {
-			add_rescue(1);
-			// Hide the "Get ->" indicator.
-			(collider + 1)->active = 0;
-			PSGSFXPlay(rescue_diver_psg, SFX_CHANNELS2AND3);
-		} else {
-			player->active = 0;
-		}
-		
-		add_score(collider->score);
+	if (player->active && !collider->thrown_away && is_touching(collider, player)) {
+		add_energy_non_negative(-3);
 	}
 }
 
 void check_collisions() {
+	// Ugly hack for collision checking against the player's punch
+	ply_shot->x = player->x + (player->facing_left ? -8 : 8);
+	ply_shot->y = player->y;
+	ply_shot->col_x = player->col_x;
+	ply_shot->col_y = player->col_y;
+	ply_shot->col_w = player->col_w;
+	ply_shot->col_h = player->col_h;
+	
 	FOREACH_ACTOR(act) {
 		collider = act;
-		check_collision_against_player_shot();
+		check_collision_against_player_attack();
 		check_collision_against_player();
 	}
 }
 
 void reset_actors_and_player() {
 	clear_actors();
-	init_actor(player, 116, 88, 3, 1, 2, 3);	
+	init_actor(player, 116, PLAYER_BOTTOM, 2, 1, 2, 3);	
 	ply_shot->active = 0;
 }
 
@@ -579,7 +548,7 @@ void draw_score() {
 		
 	// Draw the digits
 	d = buffer;
-	SMS_setNextTileatXY(((32 - SCORE_DIGITS) >> 1) + 1, 1);
+	SMS_setNextTileatXY(((32 - SCORE_DIGITS) >> 1) + 1, 0);
 	for (char i = SCORE_DIGITS; i; i--, d++) {
 		SMS_setTile((*d << 1) + 237 + TILE_USE_SPRITE_PALETTE);
 	}
@@ -605,44 +574,10 @@ void draw_level_number() {
 		
 	// Draw the digits
 	d = buffer;
-	SMS_setNextTileatXY(2, 1);
+	SMS_setNextTileatXY(2, 0);
 	for (char i = LEVEL_DIGITS; i; i--, d++) {
 		SMS_setTile((*d << 1) + 237 + TILE_USE_SPRITE_PALETTE);
 	}
-}
-
-void set_rescue(int value) {
-	if (value < 0) value = 0;
-	if (value > RESCUE_CHARS) value = RESCUE_CHARS;
-	rescue.value = value;
-	rescue.dirty = 1;	
-}
-
-void add_rescue(int value) {
-	set_rescue(rescue.value + value);	
-}
-
-void draw_rescue() {
-	static char blink_control;
-	
-	SMS_setNextTileatXY(32 - RESCUE_CHARS - 2, 2);
-	
-	int remaining = rescue.value;
-	
-	// Blink if all divers rescued.
-	if (rescue.value == RESCUE_CHARS) {
-		if (blink_control & 0x10) remaining = 0;
-		blink_control++;
-	}
-	
-	for (char i = RESCUE_CHARS; i; i--) {
-		SMS_setTile((remaining > 0 ? 63 : 62) + TILE_USE_SPRITE_PALETTE);
-		remaining --;
-	}
-}
-
-void draw_rescue_if_needed() {
-	if (rescue.dirty) draw_rescue();
 }
 
 void set_life(int value) {
@@ -656,7 +591,7 @@ void add_life(int value) {
 }
 
 void draw_life() {
-	SMS_setNextTileatXY(2, 2);
+	SMS_setNextTileatXY(2, 1);
 	
 	int remaining = life.value;
 	for (char i = LIFE_CHARS; i; i--) {
@@ -666,41 +601,41 @@ void draw_life() {
 }
 
 void draw_life_if_needed() {
-	if (rescue.dirty) draw_life();
+	if (life.dirty) draw_life();
 }
 
-void set_oxygen(int value) {
-	if (value < OXYGEN_MIN) value = OXYGEN_MIN;
-	if (value > OXYGEN_MAX) value = OXYGEN_MAX;
+void set_energy(int value) {
+	if (value < ENERGY_MIN) value = ENERGY_MIN;
+	if (value > ENERGY_MAX) value = ENERGY_MAX;
 	
-	oxygen.value = value;
+	energy.value = value;
 	
-	unsigned char shifted_value = value < 0 ? 0 : value >> OXYGEN_SHIFT;
+	unsigned char shifted_value = value < 0 ? 0 : value >> ENERGY_SHIFT;
 	
-	oxygen.dirty = shifted_value != oxygen.last_shifted_value;
-	oxygen.last_shifted_value = shifted_value;
+	energy.dirty = shifted_value != energy.last_shifted_value;
+	energy.last_shifted_value = shifted_value;
 }
 
-void add_oxygen(int value) {
-	set_oxygen(oxygen.value + value);
+void add_energy(int value) {
+	set_energy(energy.value + value);
 }
 
-void add_oxygen_non_negative(int value) {
-	value = oxygen.value + value;
+void add_energy_non_negative(int value) {
+	value = energy.value + value;
 	if (value < 0) value = 0;
-	set_oxygen(value);
+	set_energy(value);
 }
 
-void draw_oxygen() {
-	SMS_setNextTileatXY(((32 - OXYGEN_CHARS) >> 1) + 1, 2);
+void draw_energy() {
+	SMS_setNextTileatXY(((32 - ENERGY_CHARS) >> 1) + 1, 1);
 	
-	int remaining = oxygen.last_shifted_value;
+	int remaining = energy.last_shifted_value;
 	if (remaining < 0) remaining = 0;
 	
-	for (char i = OXYGEN_CHARS; i; i--) {
-		if (remaining > OXYGEN_RESOLUTION) {
+	for (char i = ENERGY_CHARS; i; i--) {
+		if (remaining > ENERGY_RESOLUTION) {
 			SMS_setTile(127 + TILE_USE_SPRITE_PALETTE);
-			remaining -= OXYGEN_RESOLUTION;
+			remaining -= ENERGY_RESOLUTION;
 			if (remaining < 0) remaining = 0;
 		} else {
 			SMS_setTile(119 + (remaining << 1) + TILE_USE_SPRITE_PALETTE);
@@ -709,43 +644,14 @@ void draw_oxygen() {
 	}
 }
 
-void draw_oxygen_if_needed() {
-	if (oxygen.dirty) draw_oxygen();
+void draw_energy_if_needed() {
+	if (energy.dirty) draw_energy();
 }
 
-char is_oxygen_critical() {
-	return !level.starting && oxygen.value < OXYGEN_MAX >> 2;
-}
-
-char is_player_filling_oxygen() {
-	return player->y < PLAYER_TOP + 4;
-}
-
-void handle_oxygen() {
+void handle_energy() {
 	if (level.starting) {			
-		add_oxygen(5);
-		level.starting = oxygen.value < OXYGEN_MAX;
-	} else {
-		if (is_player_filling_oxygen()) {
-			add_oxygen(6);
-		} else {
-			add_oxygen(-1);
-			if (oxygen.value <= OXYGEN_MIN) player->active = 0;
-		}
-	}
-
-	if (!level.ending) {		
-		if (level.starting || is_player_filling_oxygen()) {
-			if (!oxygen.playing_sfx) {
-				oxygen.playing_sfx = 1;
-				PSGSFXPlay(fill_air_psg, SFX_CHANNELS2AND3);			
-			}
-		} else {
-			if (oxygen.playing_sfx) {
-				oxygen.playing_sfx = 0;
-				PSGSFXStop();
-			}
-		}
+		add_energy(15);
+		level.starting = energy.value < ENERGY_MAX;
 	}
 }
 
@@ -755,16 +661,15 @@ void initialize_level() {
 	
 	clear_actors();
 	ply_shot->active = 0;
-	set_oxygen(0);
-	set_rescue(0);
+	set_energy(0);
 	
 	level.fish_score = 1 + level.number / 3;
 	level.submarine_score = level.fish_score << 1;
 	level.diver_score = level.fish_score + level.submarine_score;
-	level.oxygen_score = 1 + level.number / 4;
+	level.energy_score = 1 + level.number / 4;
 	
 	level.fish_speed = 1 + level.number / 3;
-	level.submarine_speed = 1 + level.number / 5;
+	level.submarine_speed = 2 + level.number / 5;
 	level.diver_speed = 1 + level.number / 6;
 	
 	if (level.fish_speed > PLAYER_SPEED) level.fish_speed = PLAYER_SPEED;
@@ -775,7 +680,7 @@ void initialize_level() {
 	level.enemy_can_fire = level.number > 1;
 	level.show_diver_indicator = level.number < 2;
 	
-	level.boost_chance = 14 - level.number * 2 / 3;
+	level.boost_chance = 7 - level.number * 2 / 3;
 	if (level.boost_chance < 2) level.boost_chance = 2;
 }
 
@@ -820,20 +725,14 @@ void perform_level_end_sequence() {
 	PSGPlayNoRepeat(level_end_psg);
 	
 	load_standard_palettes();	
-	while (oxygen.value || rescue.value) {
+	while (energy.value) {
 		if (player->x < 116) player->x++;
 		if (player->x > 116) player->x--;
 		if (player->y > PLAYER_TOP) player->y--;
 		
-		if (oxygen.value) {
-			add_score(level.oxygen_score);
-			add_oxygen_non_negative(-4);
-		} else if (rescue.value) {
-			PSGPlayNoRepeat(level_beep_psg);
-			add_score(level.diver_score << 1);
-			add_rescue(-1);
-
-			wait_frames(20);
+		if (energy.value) {
+			add_score(level.energy_score);
+			add_energy_non_negative(-4);
 		}
 		
 		SMS_initSprites();	
@@ -843,28 +742,33 @@ void perform_level_end_sequence() {
 		SMS_copySpritestoSAT();
 		
 		draw_score_if_needed();
-		draw_rescue_if_needed();
-		draw_oxygen_if_needed();
+		draw_energy_if_needed();
 	}
 	
 	level.ending = 0;
 	PSGSFXPlay(fill_air_psg, SFX_CHANNELS2AND3);			
 }
 
-void draw_go_up_icon() {
-	static char frame;
-	static char tile;
+void handle_scrolling() {
+	static int delta = 0;
 	
-	// Only show the icons if oxygen is critical, or if all divers are rescued.
-	if (rescue.value != RESCUE_CHARS && !is_oxygen_critical()) return;
-		
-	if (!animation_delay) frame += 4;
-	if (frame > 4) frame = 0;
+	if (player->x < 128) return;
 	
-	tile = 224 + frame;
-	draw_meta_sprite(48, 24, 2, 1, tile);
-	draw_meta_sprite(124, 24, 2, 1, tile);
-	draw_meta_sprite(SCREEN_W - 48 - 8, 24, 2, 1, tile);
+	delta = player->x - 128;
+	screen_scroll -= delta;	
+	SMS_setBGScrollX(screen_scroll);
+
+	player->x = 128;
+	/*
+	FOREACH_ACTOR(act) {
+		if (act->active && act->x > 0 && !act->thrown_away) {
+			act->x -= delta;
+			if (act->x < -24) {
+				act->active = 0;
+			}
+		}
+	}
+	*/
 }
 
 char gameplay_loop() {
@@ -875,11 +779,11 @@ char gameplay_loop() {
 	animation_delay = 0;
 	
 	set_score(0);
-	set_rescue(0);
 	set_life(4);
-	set_oxygen(0);	
-	oxygen.dirty = 1;
-	oxygen.playing_sfx = 0;
+	set_energy(0);	
+	energy.dirty = 1;
+	energy.playing_sfx = 0;
+	screen_scroll = 0;
 	
 	level.number = 1;
 	level.starting = 1;
@@ -892,6 +796,7 @@ char gameplay_loop() {
 	SMS_loadPSGaidencompressedTiles(sprites_tiles_psgcompr, 0);
 	SMS_loadPSGaidencompressedTiles(background_tiles_psgcompr, 256);
 	
+	SMS_setBGScrollX(0);
 	draw_background();
 
 	load_standard_palettes();
@@ -907,7 +812,7 @@ char gameplay_loop() {
 	initialize_level();
 	
 	while(1) {	
-		if (rescue.value == RESCUE_CHARS && player->y < PLAYER_TOP + 4) {
+		if (0) {
 			perform_level_end_sequence();
 			level.number++;
 			initialize_level();
@@ -917,7 +822,7 @@ char gameplay_loop() {
 		if (!player->active) {
 			add_life(-1);
 			reset_actors_and_player();
-			set_oxygen(0);
+			set_energy(0);
 			level.starting = 1;
 		}
 		
@@ -926,7 +831,7 @@ char gameplay_loop() {
 		}
 	
 		handle_player_input();
-		handle_oxygen();
+		handle_energy();
 		
 		if (!level.starting) {			
 			handle_spawners();
@@ -940,25 +845,20 @@ char gameplay_loop() {
 		
 		SMS_initSprites();	
 
+		handle_scrolling();
 		draw_actors();		
-		draw_go_up_icon();
 
 		SMS_finalizeSprites();		
 
 		SMS_waitForVBlank();
 		SMS_copySpritestoSAT();
 
-		if (is_oxygen_critical()) {
-			flash_player_red(16);
-		} else {
-			load_standard_palettes();
-		}
+		load_standard_palettes();
 		
 		draw_level_number();
 		draw_score_if_needed();
-		draw_rescue_if_needed();
 		draw_life_if_needed();
-		draw_oxygen_if_needed();
+		draw_energy_if_needed();
 				
 		frame += 6;
 		if (frame > 12) frame = 0;
@@ -1032,18 +932,46 @@ char handle_gameover() {
 	return STATE_START;
 }
 
+char handle_title() {
+	reset_actors_and_player();
+
+	SMS_waitForVBlank();
+	SMS_displayOff();
+	SMS_disableLineInterrupt();
+	clear_sprites();
+	SMS_setBGScrollX(0);
+
+	SMS_loadPSGaidencompressedTiles(dinojam_tiles_psgcompr, 0);
+	SMS_loadTileMap(0, 0, dinojam_tilemap_bin, dinojam_tilemap_bin_size);
+	SMS_loadBGPalette(dinojam_palette_bin);
+
+	SMS_displayOn();	
+	wait_frames(90);
+	SMS_displayOff();
+
+	SMS_loadPSGaidencompressedTiles(title_tiles_psgcompr, 0);
+	SMS_loadTileMap(0, 0, title_tilemap_bin, title_tilemap_bin_size);
+	SMS_loadBGPalette(title_palette_bin);
+	
+	SMS_displayOn();	
+	wait_frames(90);
+
+	return STATE_GAMEPLAY;
+}
+
 void main() {
 	char state = STATE_START;
 	
 	SMS_useFirstHalfTilesforSprites(1);
 	SMS_setSpriteMode(SPRITEMODE_TALL);
 	SMS_VDPturnOnFeature(VDPFEATURE_HIDEFIRSTCOL);
+	SMS_VDPturnOnFeature(VDPFEATURE_LOCKHSCROLL);
 	
 	while (1) {
 		switch (state) {
 			
 		case STATE_START:
-			state = STATE_GAMEPLAY;
+			state = handle_title();
 			break;
 			
 		case STATE_GAMEPLAY:
@@ -1058,6 +986,7 @@ void main() {
 }
 
 SMS_EMBED_SEGA_ROM_HEADER(9999,0); // code 9999 hopefully free, here this means 'homebrew'
-SMS_EMBED_SDSC_HEADER(0,3, 2021,5,30, "Haroldo-OK\\2021", "Sub Rescue",
-  "A subaquatic shoot-em-up.\n"
+SMS_EMBED_SDSC_HEADER(0,1, 2021,9,11, "Haroldo-OK\\2021", "Tiny Caveman",
+  "A prehistoric beat-em-up.\n"
+  "Made for Dino Jam 1.\n"
   "Built using devkitSMS & SMSlib - https://github.com/sverx/devkitSMS");
