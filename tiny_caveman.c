@@ -986,7 +986,7 @@ void main() {
 }
 
 SMS_EMBED_SEGA_ROM_HEADER(9999,0); // code 9999 hopefully free, here this means 'homebrew'
-SMS_EMBED_SDSC_HEADER(0,1, 2022,9,7, "Haroldo-OK\\2022", "Tiny Caveman",
+SMS_EMBED_SDSC_HEADER(0,1, 2021,9,11, "Haroldo-OK\\2021", "Tiny Caveman",
   "A prehistoric beat-em-up.\n"
   "Made for Dino Jam 1.\n"
   "Built using devkitSMS & SMSlib - https://github.com/sverx/devkitSMS");
