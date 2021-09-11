@@ -3,7 +3,7 @@ OBJS := data.rel tiny_caveman.rel
 
 all: $(PRJNAME).sms
 
-data.c: data/* data/font.1bpp data/sprites_tiles.psgcompr data/background_tiles.psgcompr data/title_tiles.psgcompr \
+data.c: data/* data/font.1bpp data/sprites_tiles.psgcompr data/background_tiles.psgcompr data/title_tiles.psgcompr data/dinojam_tiles.psgcompr \
 		data/enemy_death.psg data/rescue_diver.psg data/fill_air.psg data/player_death.psg data/player_punch.psg data/player_danger.psg \
 		data/level_end.psg data/level_beep.psg
 	folder2c data data
@@ -16,6 +16,9 @@ data/background_tiles.psgcompr: data/img/background.png
 
 data/title_tiles.psgcompr: data/img/title.png
 	BMP2Tile.exe data/img/title.png -palsms -fullpalette -savetiles data/title_tiles.psgcompr -savetilemap data/title_tilemap.bin -savepalette data/title_palette.bin
+
+data/dinojam_tiles.psgcompr: data/img/dinojam.png
+	BMP2Tile.exe data/img/dinojam.png -palsms -fullpalette -savetiles data/dinojam_tiles.psgcompr -savetilemap data/dinojam_tilemap.bin -savepalette data/dinojam_palette.bin
 	
 data/player_death.psg: data/deflemask/player_death.vgm
 	vgm2psg data/deflemask/player_death.vgm data/player_death.psg 23
